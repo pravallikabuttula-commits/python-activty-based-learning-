@@ -1,0 +1,122 @@
+from dataclasses import dataclass, field
+
+
+@dataclass
+class Applicant:
+    student_id: str
+    name: str
+    marks: dict
+    attendance: float
+    annual_income: float
+
+    @property
+    def aggregate(self):
+        return sum(self.marks.values()) / len(self.marks)
+
+
+@dataclass
+class ScholarshipPolicy:
+    minimum_aggregate: float = 75
+    minimum_attendance: float = 80
+    maximum_income: float = 500000
+    subject_minimums: dict = field(default_factory=lambda: {
+        "English": 60,
+        "Mathematics": 65,
+        "Science": 65
+    })
+    available_scholarships: int = 3
+
+
+def is_eligible(student, policy):
+    # Aggregate marks rule
+    if student.aggregate < policy.minimum_aggregate:
+        return False
+
+    # Attendance rule
+    if student.attendance < policy.minimum_attendance:
+        return False
+
+    # Income rule
+    if student.annual_income > policy.maximum_income:
+        return False
+
+    # Subject-wise minimum score rule
+    for subject, minimum_mark in policy.subject_minimums.items():
+        if subject not in student.marks:
+            return False
+        if student.marks[subject] < minimum_mark:
+            return False
+
+    return True
+
+
+def allocate_scholarships(applicants, policy):
+    # Keep only eligible students
+    eligible_students = [
+        student for student in applicants
+        if is_eligible(student, policy)
+    ]
+
+    # Tie-breaking order:
+    # 1. Higher aggregate
+    # 2. Higher attendance
+    # 3. Lower family income
+    # 4. Student ID alphabetical order
+    ranked_students = sorted(
+        eligible_students,
+        key=lambda student: (
+            -student.aggregate,
+            -student.attendance,
+            student.annual_income,
+            student.student_id
+        )
+    )
+
+    return ranked_students[:policy.available_scholarships]
+
+
+# Example data
+students = [
+    Applicant(
+        "S101", "Aarav",
+        {"English": 88, "Mathematics": 91, "Science": 89},
+        attendance=94,
+        annual_income=280000
+    ),
+    Applicant(
+        "S102", "Meera",
+        {"English": 90, "Mathematics": 90, "Science": 88},
+        attendance=96,
+        annual_income=320000
+    ),
+    Applicant(
+        "S103", "Rohan",
+        {"English": 89, "Mathematics": 90, "Science": 89},
+        attendance=92,
+        annual_income=240000
+    ),
+    Applicant(
+        "S104", "Sana",
+        {"English": 75, "Mathematics": 60, "Science": 85},
+        attendance=90,
+        annual_income=200000
+    ),
+    Applicant(
+        "S105", "Vikram",
+        {"English": 90, "Mathematics": 88, "Science": 92},
+        attendance=74,
+        annual_income=180000
+    )
+]
+
+policy = ScholarshipPolicy(available_scholarships=2)
+selected_students = allocate_scholarships(students, policy)
+
+print("Selected Scholarship Students:")
+for rank, student in enumerate(selected_students, start=1):
+    print(
+        f"{rank}. {student.name} ({student.student_id}) | "
+        f"Aggregate: {student.aggregate:.2f} | "
+        f"Attendance: {student.attendance}% | "
+        f"Income: ₹{student.annual_income}"
+    )
